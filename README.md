@@ -48,3 +48,8 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Authors
+- Ronal Miguel Poveda Ruiz - 506231096
+- David Santiago Prieto Beltran - 506212024
+- Santiago Gonzalez Mogollon - 506231100
+- Barbara Alejos Rodriguez - 506211033
