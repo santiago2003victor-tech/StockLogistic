@@ -1,5 +1,36 @@
+// ==========================================================
+// PANTALLA DE EMPLEADOS
+// ----------------------------------------------------------
+// Esta pantalla permite:
+// - visualizar empleados registrados
+// - buscar empleados
+// - agregar nuevos empleados
+// - eliminar empleados
+// - mostrar métricas rápidas (activos / administradores)
+// ==========================================================
+
+// ----------------------------------------------------------
+// IMPORTACIÓN DE ICONOS
+// ----------------------------------------------------------
+// Feather se usa para íconos visuales dentro de la interfaz
 import { Feather } from "@expo/vector-icons";
+
+// ----------------------------------------------------------
+// IMPORTACIÓN DE HOOKS DE REACT
+// ----------------------------------------------------------
+// useContext: permite acceder al contexto global de empleados
+// useMemo: optimiza el filtrado de empleados
+// useState: controla inputs, modal y rol seleccionado
 import { useContext, useMemo, useState } from "react";
+
+// ----------------------------------------------------------
+// COMPONENTES NATIVOS DE REACT NATIVE
+// ----------------------------------------------------------
+// FlatList: lista optimizada para mostrar empleados
+// Modal: ventana emergente para agregar empleado
+// Pressable / TouchableOpacity: botones táctiles
+// TextInput: campos del formulario
+// View / Text / StyleSheet: estructura visual
 import {
   FlatList,
   Modal,
@@ -10,15 +41,45 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+// ----------------------------------------------------------
+// CONTEXTO DE EMPLEADOS
+// ----------------------------------------------------------
+// EmployeeContext contiene:
+// - empleados: lista global de empleados
+// - agregarEmpleado(): registra uno nuevo
+// - eliminarEmpleado(): elimina uno existente
 import { EmployeeContext } from "../context/EmployeeContext";
 
+// ----------------------------------------------------------
+// ROLES DISPONIBLES EN EL SISTEMA
+// ----------------------------------------------------------
 const ROLES = ["Empleado", "Administrador"];
 
+// ==========================================================
+// COMPONENTE PRINCIPAL: EmployeeScreen
+// ==========================================================
 export default function EmployeeScreen({ navigation }) {
-  const { empleados, agregarEmpleado, eliminarEmpleado } = useContext(EmployeeContext);
+  // --------------------------------------------------------
+  // DATOS DEL CONTEXTO
+  // --------------------------------------------------------
+  const { empleados, agregarEmpleado, eliminarEmpleado } =
+    useContext(EmployeeContext);
+
+  // --------------------------------------------------------
+  // ESTADOS LOCALES DE LA PANTALLA
+  // --------------------------------------------------------
+
+  // Texto escrito en la barra de búsqueda
   const [busqueda, setBusqueda] = useState("");
+
+  // Controla si el modal está abierto o cerrado
   const [modalVisible, setModalVisible] = useState(false);
+
+  // Rol seleccionado en el formulario
   const [rol, setRol] = useState("Empleado");
+
+  // Datos del formulario para registrar empleado
   const [form, setForm] = useState({
     nombre: "",
     usuario: "",
@@ -27,21 +88,52 @@ export default function EmployeeScreen({ navigation }) {
     password: "",
   });
 
+  // --------------------------------------------------------
+  // FILTRADO DE EMPLEADOS
+  // --------------------------------------------------------
+  // Se filtran empleados por:
+  // - nombre
+  // - correo
+  // - teléfono
+  //
+  // useMemo evita recalcular el filtro en cada render
   const empleadosFiltrados = useMemo(() => {
     const filtro = busqueda.trim().toLowerCase();
+
+    // Si no hay búsqueda, retorna todos
     if (!filtro) return empleados;
 
     return empleados.filter((e) => {
       const nombre = (e.nombre || e.usuario || "").toLowerCase();
       const correo = (e.correo || "").toLowerCase();
       const telefono = (e.telefono || "").toLowerCase();
-      return nombre.includes(filtro) || correo.includes(filtro) || telefono.includes(filtro);
+
+      return (
+        nombre.includes(filtro) ||
+        correo.includes(filtro) ||
+        telefono.includes(filtro)
+      );
     });
   }, [busqueda, empleados]);
 
-  const activos = empleados.filter((e) => (e.estado || "Activo") === "Activo").length;
-  const administradores = empleados.filter((e) => (e.rol || "Empleado") === "Administrador").length;
+  // --------------------------------------------------------
+  // MÉTRICAS SUPERIORES
+  // --------------------------------------------------------
 
+  // Total de empleados activos
+  const activos = empleados.filter(
+    (e) => (e.estado || "Activo") === "Activo"
+  ).length;
+
+  // Total de empleados con rol Administrador
+  const administradores = empleados.filter(
+    (e) => (e.rol || "Empleado") === "Administrador"
+  ).length;
+
+  // --------------------------------------------------------
+  // RESETEAR FORMULARIO
+  // --------------------------------------------------------
+  // Limpia todos los campos y deja rol por defecto
   const resetForm = () => {
     setForm({
       nombre: "",
@@ -53,17 +145,23 @@ export default function EmployeeScreen({ navigation }) {
     setRol("Empleado");
   };
 
+  // --------------------------------------------------------
+  // GUARDAR NUEVO EMPLEADO
+  // --------------------------------------------------------
   const guardarEmpleado = () => {
+    // Validación mínima obligatoria
     if (!form.nombre.trim() || !form.usuario.trim() || !form.password.trim()) {
       alert("Completa nombre, usuario y contrasena");
       return;
     }
 
+    // Obtener fecha actual para guardar fecha de ingreso
     const hoy = new Date();
     const dd = String(hoy.getDate()).padStart(2, "0");
     const mm = String(hoy.getMonth() + 1).padStart(2, "0");
     const yyyy = hoy.getFullYear();
 
+    // Agregar empleado al contexto
     agregarEmpleado({
       nombre: form.nombre.trim(),
       usuario: form.usuario.trim(),
@@ -75,26 +173,34 @@ export default function EmployeeScreen({ navigation }) {
       fechaIngreso: `${dd}/${mm}/${yyyy}`,
     });
 
+    // Cerrar modal y limpiar formulario
     setModalVisible(false);
     resetForm();
   };
 
+  // ========================================================
+  // RENDER DE LA INTERFAZ
+  // ========================================================
   return (
     <View style={styles.screen}>
+      {/* ====================================================
+          HEADER SUPERIOR
+      ==================================================== */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeftGroup}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Feather name="arrow-left" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
             <Text style={styles.title}>Empleados</Text>
           </View>
 
-          <TouchableOpacity style={styles.plusButton} onPress={() => setModalVisible(true)}>
+          <TouchableOpacity
+            style={styles.plusButton}
+            onPress={() => setModalVisible(true)}
+          >
             <Feather name="plus" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
+        {/* Barra de búsqueda */}
         <View style={styles.searchBox}>
           <Feather name="search" size={20} color="#8D98A6" />
           <TextInput
@@ -106,11 +212,13 @@ export default function EmployeeScreen({ navigation }) {
           />
         </View>
 
+        {/* Tarjetas estadísticas */}
         <View style={styles.topStatsRow}>
           <View style={styles.topStatCard}>
             <Text style={styles.topStatLabel}>Activos</Text>
             <Text style={styles.topStatValue}>{activos}</Text>
           </View>
+
           <View style={styles.topStatCard}>
             <Text style={styles.topStatLabel}>Administradores</Text>
             <Text style={styles.topStatValue}>{administradores}</Text>
@@ -118,6 +226,9 @@ export default function EmployeeScreen({ navigation }) {
         </View>
       </View>
 
+      {/* ====================================================
+          LISTA DE EMPLEADOS
+      ==================================================== */}
       <FlatList
         data={empleadosFiltrados}
         keyExtractor={(item) => item.id}
@@ -130,6 +241,7 @@ export default function EmployeeScreen({ navigation }) {
 
           return (
             <View style={styles.employeeCard}>
+              {/* Parte superior de la tarjeta */}
               <View style={styles.cardTop}>
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarText}>{iniciales}</Text>
@@ -137,34 +249,47 @@ export default function EmployeeScreen({ navigation }) {
 
                 <View style={styles.cardTitleWrap}>
                   <Text style={styles.employeeName}>{nombre}</Text>
+
                   <View style={styles.chipsRow}>
                     <View style={styles.roleChip}>
                       <Text style={styles.roleChipText}>{rolEmpleado}</Text>
                     </View>
+
                     <View style={styles.activeChip}>
                       <Text style={styles.activeChipText}>{estado}</Text>
                     </View>
                   </View>
                 </View>
 
-                <TouchableOpacity style={styles.deleteButton} onPress={() => eliminarEmpleado(item.id)}>
+                {/* Botón eliminar */}
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => eliminarEmpleado(item.id)}
+                >
                   <Feather name="trash-2" size={16} color="#FF3333" />
                 </TouchableOpacity>
               </View>
 
+              {/* Datos del empleado */}
               <View style={styles.lineRow}>
                 <Feather name="mail" size={16} color="#5F7086" />
-                <Text style={styles.lineText}>{item.correo || `${item.usuario}@empresa.com`}</Text>
+                <Text style={styles.lineText}>
+                  {item.correo || `${item.usuario}@empresa.com`}
+                </Text>
               </View>
 
               <View style={styles.lineRow}>
                 <Feather name="phone" size={16} color="#5F7086" />
-                <Text style={styles.lineText}>{item.telefono || "555-0101"}</Text>
+                <Text style={styles.lineText}>
+                  {item.telefono || "555-0101"}
+                </Text>
               </View>
 
               <View style={styles.lineRow}>
                 <Feather name="user-check" size={16} color="#5F7086" />
-                <Text style={styles.lineText}>Desde: {item.fechaIngreso || "--/--/----"}</Text>
+                <Text style={styles.lineText}>
+                  Desde: {item.fechaIngreso || "--/--/----"}
+                </Text>
               </View>
             </View>
           );
@@ -172,21 +297,42 @@ export default function EmployeeScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>Aun no hay empleados</Text>
-            <Text style={styles.emptyText}>Pulsa + para registrar el primero.</Text>
+            <Text style={styles.emptyText}>
+              Pulsa + para registrar el primero.
+            </Text>
           </View>
         }
       />
-
-      <Modal transparent visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
+      {/* BOTÓN FLOTANTE DE VOLVER */}
+      <TouchableOpacity
+        style={styles.floatingBack}
+        onPress={() => navigation.goBack()}
+      >
+        <Feather name="arrow-left" size={20} color="#FFFFFF" />
+      </TouchableOpacity>
+      {/* ====================================================
+          MODAL PARA AGREGAR EMPLEADO
+      ==================================================== */}
+      <Modal
+        transparent
+        visible={modalVisible}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Agregar Empleado</Text>
-              <Pressable style={styles.closeCircle} onPress={() => setModalVisible(false)}>
+
+              <Pressable
+                style={styles.closeCircle}
+                onPress={() => setModalVisible(false)}
+              >
                 <Feather name="x" size={20} color="#1C2430" />
               </Pressable>
             </View>
 
+            {/* Campos del formulario */}
             <Text style={styles.inputLabel}>Nombre completo</Text>
             <TextInput
               value={form.nombre}
@@ -233,40 +379,74 @@ export default function EmployeeScreen({ navigation }) {
               style={styles.input}
             />
 
+            {/* Selección de rol */}
             <Text style={styles.inputLabel}>Rol</Text>
             <View style={styles.rolesRow}>
               {ROLES.map((item) => {
                 const activo = item === rol;
+
                 return (
                   <TouchableOpacity
                     key={item}
-                    style={[styles.rolePickerChip, activo && styles.rolePickerChipActive]}
+                    style={[
+                      styles.rolePickerChip,
+                      activo && styles.rolePickerChipActive,
+                    ]}
                     onPress={() => setRol(item)}
                   >
-                    <Text style={[styles.rolePickerText, activo && styles.rolePickerTextActive]}>{item}</Text>
+                    <Text
+                      style={[
+                        styles.rolePickerText,
+                        activo && styles.rolePickerTextActive,
+                      ]}
+                    >
+                      {item}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            <TouchableOpacity style={styles.saveButton} onPress={guardarEmpleado}>
+            {/* Botón guardar */}
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={guardarEmpleado}
+            >
               <Text style={styles.saveButtonText}>Guardar Empleado</Text>
             </TouchableOpacity>
           </View>
+
+          {/* BOTÓN FLOTANTE PARA CERRAR EL MODAL */}
+          <TouchableOpacity
+            style={styles.floatingBackModal}
+            onPress={() => setModalVisible(false)}
+          >
+            <Feather name="arrow-left" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
       </Modal>
     </View>
   );
 }
 
+// ==========================================================
+// FUNCIÓN AUXILIAR: OBTENER INICIALES
+// ----------------------------------------------------------
+// Convierte un nombre como "Maria Gonzalez" en "MG"
+// ==========================================================
 function obtenerIniciales(nombre) {
   const partes = nombre.trim().split(/\s+/);
+
   if (partes.length === 1) {
     return partes[0].slice(0, 2).toUpperCase();
   }
+
   return `${partes[0][0]}${partes[1][0]}`.toUpperCase();
 }
 
+// ==========================================================
+// ESTILOS DE LA PANTALLA
+// ==========================================================
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -301,7 +481,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#FFFFFF",
-    fontSize: 36 / 2,
+    fontSize: 18,
     fontWeight: "800",
   },
   plusButton: {
@@ -344,12 +524,34 @@ const styles = StyleSheet.create({
   },
   topStatValue: {
     color: "#FFFFFF",
-    fontSize: 34 / 2,
+    fontSize: 17,
     fontWeight: "800",
   },
-  listContent: {
-    padding: 10,
-    paddingBottom: 20,
+  floatingBack: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#001A3D",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    zIndex: 999,
+  },
+  floatingBackModal: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#001A3D",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    zIndex: 999,
   },
   employeeCard: {
     backgroundColor: "#F7F8FA",
@@ -383,7 +585,7 @@ const styles = StyleSheet.create({
   },
   employeeName: {
     color: "#031A39",
-    fontSize: 34 / 2,
+    fontSize: 17,
     fontWeight: "700",
     marginBottom: 3,
   },
@@ -454,7 +656,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 24,
+    paddingBottom: 80,
   },
   modalHeader: {
     flexDirection: "row",
@@ -528,5 +730,18 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 15,
+  },
+  floatingBackModal: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#001A3D",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    zIndex: 999,
   },
 });

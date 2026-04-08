@@ -1,64 +1,70 @@
-import { createContext, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createContext, useEffect, useState } from "react";
 
 export const ProductContext = createContext();
 
 export const ProductProvider = ({ children }) => {
   const [productos, setProductos] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
-  const normalizarProducto = (producto) => ({
-    ...producto,
-    cantidad: Number(producto.cantidad || 0),
-    precio: Number(producto.precio || 0),
-    categoria: producto.categoria || "General",
-    vencimiento: producto.vencimiento || "",
-  });
+  // ---------------------------------------------------
+  // CARGAR PRODUCTOS GUARDADOS
+  // ---------------------------------------------------
+  useEffect(() => {
+    const cargarProductos = async () => {
+      try {
+        const data = await AsyncStorage.getItem("productos");
 
-  // ✅ AGREGAR PRODUCTO (seguro)
-  const agregarProducto = (producto) => {
-    setProductos((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        ...normalizarProducto(producto),
-      },
-    ]);
-  };
-
-  // ✏️ EDITAR PRODUCTO
-  const editarProducto = (id, productoActualizado) => {
-    setProductos((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              ...normalizarProducto(productoActualizado),
-              id,
-            }
-          : p,
-      ),
-    );
-  };
-
-  // 🔴 SALIDA DE PRODUCTO (controlada)
-  const salidaProducto = (id, cantidadSalida) => {
-    setProductos((prev) =>
-      prev.map((p) => {
-        if (p.id === id) {
-          const nuevaCantidad = p.cantidad - cantidadSalida;
-
-          return {
-            ...p,
-            cantidad: nuevaCantidad < 0 ? 0 : nuevaCantidad, // 🔥 evita negativos
-          };
+        if (data) {
+          setProductos(JSON.parse(data));
         }
-        return p;
-      }),
+      } catch (error) {
+        console.log("Error cargando productos:", error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    cargarProductos();
+  }, []);
+
+  // ---------------------------------------------------
+  // GUARDAR PRODUCTOS CADA VEZ QUE CAMBIEN
+  // ---------------------------------------------------
+  useEffect(() => {
+    if (!loadingProducts) {
+      AsyncStorage.setItem("productos", JSON.stringify(productos));
+    }
+  }, [productos, loadingProducts]);
+
+  // ---------------------------------------------------
+  // AGREGAR PRODUCTO
+  // ---------------------------------------------------
+  const agregarProducto = (nuevoProducto) => {
+    const productoConId = {
+      id: Date.now().toString(),
+      ...nuevoProducto,
+    };
+
+    setProductos((prev) => [...prev, productoConId]);
+  };
+
+  // ---------------------------------------------------
+  // EDITAR PRODUCTO
+  // ---------------------------------------------------
+  const editarProducto = (id, datosActualizados) => {
+    setProductos((prev) =>
+      prev.map((prod) =>
+        prod.id === id ? { ...prod, ...datosActualizados } : prod
+      )
     );
   };
 
-  // ❌ ELIMINAR PRODUCTO
+  // ---------------------------------------------------
+  // ELIMINAR PRODUCTO
+  // ---------------------------------------------------
   const eliminarProducto = (id) => {
-    setProductos((prev) => prev.filter((p) => p.id !== id));
+    setProductos((prev) => prev.filter((prod) => prod.id !== id));
   };
 
   return (
@@ -67,8 +73,8 @@ export const ProductProvider = ({ children }) => {
         productos,
         agregarProducto,
         editarProducto,
-        salidaProducto,
         eliminarProducto,
+        loadingProducts,
       }}
     >
       {children}

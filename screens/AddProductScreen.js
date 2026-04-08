@@ -24,9 +24,17 @@ const FORM_INICIAL = {
   vencimiento: "",
 };
 
-export default function AddProductScreen({ navigation }) {
+export default function AddProductScreen({ navigation, route }) {
   const { productos, agregarProducto, editarProducto, eliminarProducto } =
     useContext(ProductContext);
+  // --------------------------------------------------------
+  // FILTRO RECIBIDO DESDE EL DASHBOARD
+  // --------------------------------------------------------
+  // Puede ser:
+  // - "todos"
+  // - "porVencer"
+  // - "stockBajo"
+  const filtroDashboard = route?.params?.filtroDashboard || "todos";
 
   const [busqueda, setBusqueda] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
@@ -38,22 +46,73 @@ export default function AddProductScreen({ navigation }) {
   const [mostrarFiltros, setMostrarFiltros] = useState(true);
   const [categoriaActiva, setCategoriaActiva] = useState("Todos");
 
+  // --------------------------------------------------------
+  // TÍTULO DINÁMICO SEGÚN EL FILTRO DEL DASHBOARD
+  // --------------------------------------------------------
+  const tituloPantalla =
+    filtroDashboard === "porVencer"
+      ? "Por Vencer"
+      : filtroDashboard === "stockBajo"
+        ? "Stock Bajo"
+        : "Productos";
+
+  // --------------------------------------------------------
+  // PRODUCTOS FILTRADOS
+  // --------------------------------------------------------
+  // Este filtro combina:
+  // 1. búsqueda por texto
+  // 2. filtro por categoría
+  // 3. filtro especial recibido desde el dashboard
   const productosFiltrados = useMemo(() => {
     const filtro = normalizarTexto(busqueda.trim());
+    const hoy = new Date();
 
     return productos.filter((p) => {
       const nombre = normalizarTexto(p.nombre || "");
       const categoria = normalizarTexto(p.categoria || "General");
 
+      // ----------------------------------------------
+      // FILTRO POR BÚSQUEDA
+      // ----------------------------------------------
       const coincideBusqueda =
         !filtro || nombre.includes(filtro) || categoria.includes(filtro);
+
+      // ----------------------------------------------
+      // FILTRO POR CATEGORÍA
+      // ----------------------------------------------
       const coincideCategoria =
         categoriaActiva === "Todos" ||
         categoria === normalizarTexto(categoriaActiva);
 
-      return coincideBusqueda && coincideCategoria;
+      // ----------------------------------------------
+      // FILTRO ESPECIAL DEL DASHBOARD
+      // ----------------------------------------------
+      let coincideDashboard = true;
+
+      // Mostrar solo productos por vencer
+      if (filtroDashboard === "porVencer") {
+        if (!p.vencimiento) {
+          coincideDashboard = false;
+        } else {
+          const fecha = new Date(p.vencimiento);
+          if (Number.isNaN(fecha.getTime())) {
+            coincideDashboard = false;
+          } else {
+            const diffDias = (fecha - hoy) / (1000 * 60 * 60 * 24);
+            coincideDashboard = diffDias >= 0 && diffDias <= 30;
+          }
+        }
+      }
+
+      // Mostrar solo productos con stock bajo
+      if (filtroDashboard === "stockBajo") {
+        coincideDashboard = Number(p.cantidad || 0) <= 10;
+      }
+
+      // Si es "todos", no restringe nada
+      return coincideBusqueda && coincideCategoria && coincideDashboard;
     });
-  }, [busqueda, productos, categoriaActiva]);
+  }, [busqueda, productos, categoriaActiva, filtroDashboard]);
 
   const resetFormulario = () => {
     setForm(FORM_INICIAL);
@@ -142,7 +201,7 @@ export default function AddProductScreen({ navigation }) {
     <View style={styles.screen}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Productos</Text>
+          <Text style={styles.headerTitle}>{tituloPantalla}</Text>
           <TouchableOpacity style={styles.addButton} onPress={abrirNuevo}>
             <Feather name="plus" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -394,7 +453,7 @@ export default function AddProductScreen({ navigation }) {
           style={styles.calendarOverlay}
           onPress={() => setMostrarCalendario(false)}
         >
-          <Pressable style={styles.calendarCard} onPress={() => {}}>
+          <Pressable style={styles.calendarCard} onPress={() => { }}>
             <View style={styles.calendarHeader}>
               <TouchableOpacity
                 style={styles.calendarNavButton}
@@ -632,9 +691,31 @@ const styles = StyleSheet.create({
     color: "#FF6200",
     fontWeight: "700",
   },
-  listContent: {
-    padding: 10,
-    paddingBottom: 90,
+  floatingBack: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#001A3D",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    zIndex: 999,
+  },
+  floatingBackModal: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#001A3D",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    zIndex: 999,
   },
   card: {
     backgroundColor: "#F7F8FA",

@@ -1,6 +1,7 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useContext } from "react";
+import { ActivityIndicator, View } from "react-native";
 
 // 🔥 CONTEXTOS
 import { AuthContext, AuthProvider } from "./context/AuthContext";
@@ -21,7 +22,23 @@ const Stack = createNativeStackNavigator();
 
 // 🔁 CONTROL DE FLUJO (ROL + LOGIN)
 function Navigation() {
-  const { rol, isAuth } = useContext(AuthContext);
+  const { rol, isAuth, loading } = useContext(AuthContext);
+
+  // ⏳ ESPERAR A QUE CARGUE LA SESIÓN GUARDADA
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#ECEDEF",
+        }}
+      >
+        <ActivityIndicator size="large" color="#FF6200" />
+      </View>
+    );
+  }
 
   return (
     <Stack.Navigator>
