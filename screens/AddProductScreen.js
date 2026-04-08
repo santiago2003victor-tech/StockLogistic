@@ -25,20 +25,27 @@ const FORM_INICIAL = {
 };
 
 export default function AddProductScreen({ navigation, route }) {
-  const { productos, agregarProducto, editarProducto, eliminarProducto } =
-    useContext(ProductContext);
+  const {
+    productos,
+    agregarProducto,
+    editarProducto,
+    eliminarProducto,
+    registrarSalida,
+  } = useContext(ProductContext);
+
   // --------------------------------------------------------
   // FILTRO RECIBIDO DESDE EL DASHBOARD
   // --------------------------------------------------------
-  // Puede ser:
-  // - "todos"
-  // - "porVencer"
-  // - "stockBajo"
   const filtroDashboard = route?.params?.filtroDashboard || "todos";
 
   const [busqueda, setBusqueda] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
+  const [modalVentaVisible, setModalVentaVisible] = useState(false);
+
   const [editandoId, setEditandoId] = useState(null);
+  const [productoVenta, setProductoVenta] = useState(null);
+  const [cantidadVenta, setCantidadVenta] = useState("");
+
   const [form, setForm] = useState(FORM_INICIAL);
   const [mostrarCategorias, setMostrarCategorias] = useState(false);
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
@@ -47,22 +54,18 @@ export default function AddProductScreen({ navigation, route }) {
   const [categoriaActiva, setCategoriaActiva] = useState("Todos");
 
   // --------------------------------------------------------
-  // TÍTULO DINÁMICO SEGÚN EL FILTRO DEL DASHBOARD
+  // TÍTULO DINÁMICO
   // --------------------------------------------------------
   const tituloPantalla =
     filtroDashboard === "porVencer"
       ? "Por Vencer"
       : filtroDashboard === "stockBajo"
-        ? "Stock Bajo"
-        : "Productos";
+      ? "Stock Bajo"
+      : "Productos";
 
   // --------------------------------------------------------
   // PRODUCTOS FILTRADOS
   // --------------------------------------------------------
-  // Este filtro combina:
-  // 1. búsqueda por texto
-  // 2. filtro por categoría
-  // 3. filtro especial recibido desde el dashboard
   const productosFiltrados = useMemo(() => {
     const filtro = normalizarTexto(busqueda.trim());
     const hoy = new Date();
@@ -71,25 +74,15 @@ export default function AddProductScreen({ navigation, route }) {
       const nombre = normalizarTexto(p.nombre || "");
       const categoria = normalizarTexto(p.categoria || "General");
 
-      // ----------------------------------------------
-      // FILTRO POR BÚSQUEDA
-      // ----------------------------------------------
       const coincideBusqueda =
         !filtro || nombre.includes(filtro) || categoria.includes(filtro);
 
-      // ----------------------------------------------
-      // FILTRO POR CATEGORÍA
-      // ----------------------------------------------
       const coincideCategoria =
         categoriaActiva === "Todos" ||
         categoria === normalizarTexto(categoriaActiva);
 
-      // ----------------------------------------------
-      // FILTRO ESPECIAL DEL DASHBOARD
-      // ----------------------------------------------
       let coincideDashboard = true;
 
-      // Mostrar solo productos por vencer
       if (filtroDashboard === "porVencer") {
         if (!p.vencimiento) {
           coincideDashboard = false;
@@ -104,16 +97,17 @@ export default function AddProductScreen({ navigation, route }) {
         }
       }
 
-      // Mostrar solo productos con stock bajo
       if (filtroDashboard === "stockBajo") {
         coincideDashboard = Number(p.cantidad || 0) <= 10;
       }
 
-      // Si es "todos", no restringe nada
       return coincideBusqueda && coincideCategoria && coincideDashboard;
     });
   }, [busqueda, productos, categoriaActiva, filtroDashboard]);
 
+  // --------------------------------------------------------
+  // FORMULARIO PRODUCTOS
+  // --------------------------------------------------------
   const resetFormulario = () => {
     setForm(FORM_INICIAL);
     setEditandoId(null);
@@ -161,7 +155,7 @@ export default function AddProductScreen({ navigation, route }) {
     setMostrarCalendario(false);
   };
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!form.nombre.trim()) {
       alert("Ingresa el nombre del producto");
       return;
@@ -189,12 +183,53 @@ export default function AddProductScreen({ navigation, route }) {
     };
 
     if (editandoId) {
-      editarProducto(editandoId, payload);
+      await editarProducto(editandoId, payload);
     } else {
-      agregarProducto(payload);
+      await agregarProducto(payload);
     }
 
     cerrarModal();
+  };
+
+  // --------------------------------------------------------
+  // VENTAS / SALIDAS
+  // --------------------------------------------------------
+  const abrirVenta = (producto) => {
+    setProductoVenta(producto);
+    setCantidadVenta("");
+    setModalVentaVisible(true);
+  };
+
+  const cerrarVenta = () => {
+    setProductoVenta(null);
+    setCantidadVenta("");
+    setModalVentaVisible(false);
+  };
+
+  const confirmarVenta = async () => {
+    if (!productoVenta) return;
+
+    const cantidad = Number(cantidadVenta || 0);
+
+    if (Number.isNaN(cantidad) || cantidad <= 0) {
+      alert("Ingresa una cantidad valida para vender");
+      return;
+    }
+
+    const resultado = await registrarSalida(productoVenta.id, cantidad);
+
+    if (!resultado.ok) {
+      alert(resultado.mensaje);
+      return;
+    }
+
+    cerrarVenta();
+
+    if (resultado.advertencia) {
+      alert(`⚠️ ${resultado.mensaje}`);
+    } else {
+      alert("Venta registrada correctamente");
+    }
   };
 
   return (
@@ -277,11 +312,19 @@ export default function AddProductScreen({ navigation, route }) {
 
               <View style={styles.actionsWrap}>
                 <TouchableOpacity
+                  style={styles.iconButtonGreen}
+                  onPress={() => abrirVenta(item)}
+                >
+                  <Feather name="shopping-cart" size={15} color="#00A63E" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
                   style={styles.iconButtonBlue}
                   onPress={() => abrirEditar(item)}
                 >
                   <Feather name="edit-2" size={15} color="#1E66F5" />
                 </TouchableOpacity>
+
                 <TouchableOpacity
                   style={styles.iconButtonRed}
                   onPress={() => eliminarProducto(item.id)}
@@ -345,6 +388,7 @@ export default function AddProductScreen({ navigation, route }) {
         }
       />
 
+      {/* MODAL AGREGAR / EDITAR */}
       <Modal
         transparent
         visible={modalVisible}
@@ -443,6 +487,64 @@ export default function AddProductScreen({ navigation, route }) {
         </View>
       </Modal>
 
+      {/* MODAL VENTA */}
+      <Modal
+        transparent
+        visible={modalVentaVisible}
+        animationType="slide"
+        onRequestClose={cerrarVenta}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Registrar Venta</Text>
+              <Pressable style={styles.closeCircle} onPress={cerrarVenta}>
+                <Feather name="x" size={22} color="#20242B" />
+              </Pressable>
+            </View>
+
+            <Text style={styles.saleTitle}>
+              {productoVenta?.nombre || "Producto"}
+            </Text>
+            <Text style={styles.saleSubtext}>
+              Categoria: {productoVenta?.categoria || "General"}
+            </Text>
+            <Text style={styles.saleSubtext}>
+              Stock actual: {Number(productoVenta?.cantidad || 0)} unidades
+            </Text>
+            <Text style={styles.saleSubtext}>
+              Vence: {formatearFechaParaVista(productoVenta?.vencimiento || "")}
+            </Text>
+
+            <Text style={styles.inputLabel}>Cantidad a vender</Text>
+            <TextInput
+              value={cantidadVenta}
+              onChangeText={setCantidadVenta}
+              keyboardType="numeric"
+              placeholder="Ej: 5"
+              placeholderTextColor="#8D98A6"
+              style={styles.input}
+            />
+
+            <View style={styles.warningBox}>
+              <Feather name="alert-triangle" size={18} color="#D78011" />
+              <Text style={styles.warningText}>
+                Si existe otro lote del mismo producto con vencimiento mas
+                cercano, el sistema te avisara automaticamente.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.sellButton}
+              onPress={confirmarVenta}
+            >
+              <Text style={styles.sellButtonText}>Confirmar Venta</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL CALENDARIO */}
       <Modal
         transparent
         visible={mostrarCalendario}
@@ -453,14 +555,14 @@ export default function AddProductScreen({ navigation, route }) {
           style={styles.calendarOverlay}
           onPress={() => setMostrarCalendario(false)}
         >
-          <Pressable style={styles.calendarCard} onPress={() => { }}>
+          <Pressable style={styles.calendarCard} onPress={() => {}}>
             <View style={styles.calendarHeader}>
               <TouchableOpacity
                 style={styles.calendarNavButton}
                 onPress={() =>
                   setMesCalendario(
                     (prev) =>
-                      new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+                      new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
                   )
                 }
               >
@@ -476,7 +578,7 @@ export default function AddProductScreen({ navigation, route }) {
                 onPress={() =>
                   setMesCalendario(
                     (prev) =>
-                      new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+                      new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
                   )
                 }
               >
@@ -504,7 +606,13 @@ export default function AddProductScreen({ navigation, route }) {
                 }
 
                 const textoSeleccionado = form.vencimiento || "";
-                const actual = `${String(dia.getDate()).padStart(2, "0")}/${String(dia.getMonth() + 1).padStart(2, "0")}/${dia.getFullYear()}`;
+                const actual = `${String(dia.getDate()).padStart(
+                  2,
+                  "0"
+                )}/${String(dia.getMonth() + 1).padStart(
+                  2,
+                  "0"
+                )}/${dia.getFullYear()}`;
                 const seleccionado = textoSeleccionado === actual;
 
                 return (
@@ -542,6 +650,9 @@ export default function AddProductScreen({ navigation, route }) {
   );
 }
 
+// ==========================================================
+// FUNCIONES AUXILIARES
+// ==========================================================
 function normalizarFecha(valor) {
   if (!valor) return "";
 
@@ -600,15 +711,21 @@ function construirDiasMes(fechaBase) {
 
   const dias = Array.from(
     { length: totalDias },
-    (_, i) => new Date(year, month, i + 1),
+    (_, i) => new Date(year, month, i + 1)
   );
   return [...blanks, ...dias];
 }
 
 function formatearMes(fecha) {
-  return fecha.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  return fecha.toLocaleDateString("es-ES", {
+    month: "long",
+    year: "numeric",
+  });
 }
 
+// ==========================================================
+// ESTILOS
+// ==========================================================
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -630,7 +747,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: "#FFFFFF",
-    fontSize: 36 / 2,
+    fontSize: 18,
     fontWeight: "700",
   },
   addButton: {
@@ -653,7 +770,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: "#243548",
-    fontSize: 32 / 2,
+    fontSize: 16,
   },
   filterToggle: {
     width: 30,
@@ -691,31 +808,9 @@ const styles = StyleSheet.create({
     color: "#FF6200",
     fontWeight: "700",
   },
-  floatingBack: {
-    position: "absolute",
-    right: 16,
-    bottom: 16,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#001A3D",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 8,
-    zIndex: 999,
-  },
-  floatingBackModal: {
-    position: "absolute",
-    right: 16,
-    bottom: 16,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#001A3D",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 8,
-    zIndex: 999,
+  listContent: {
+    padding: 10,
+    paddingBottom: 90,
   },
   card: {
     backgroundColor: "#F7F8FA",
@@ -733,17 +828,25 @@ const styles = StyleSheet.create({
   },
   productName: {
     color: "#041B3A",
-    fontSize: 34 / 2,
+    fontSize: 17,
     fontWeight: "700",
     marginBottom: 2,
   },
   productCategory: {
     color: "#495E76",
-    fontSize: 28 / 2,
+    fontSize: 14,
   },
   actionsWrap: {
     flexDirection: "row",
     gap: 8,
+  },
+  iconButtonGreen: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: "#E7F7EE",
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconButtonBlue: {
     width: 30,
@@ -771,11 +874,11 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     color: "#596E84",
-    fontSize: 26 / 2,
+    fontSize: 13,
   },
   statValue: {
     color: "#021A3A",
-    fontSize: 34 / 2,
+    fontSize: 17,
     fontWeight: "700",
   },
   lowStock: {
@@ -793,7 +896,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF2DE",
   },
   badgeText: {
-    fontSize: 24 / 2,
+    fontSize: 12,
     fontWeight: "600",
   },
   badgeTextOk: {
@@ -805,7 +908,7 @@ const styles = StyleSheet.create({
   expiryText: {
     marginTop: 10,
     color: "#596E84",
-    fontSize: 26 / 2,
+    fontSize: 13,
   },
   emptyState: {
     marginTop: 24,
@@ -921,9 +1024,47 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: "#FFFFFF",
-    fontSize: 30 / 2,
+    fontSize: 15,
     fontWeight: "700",
-    textDecorationLine: "underline",
+  },
+  sellButton: {
+    marginTop: 18,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#00A63E",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sellButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  saleTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#041B3A",
+    marginBottom: 6,
+  },
+  saleSubtext: {
+    fontSize: 14,
+    color: "#5C6F86",
+    marginBottom: 4,
+  },
+  warningBox: {
+    marginTop: 16,
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: "#FFF6E8",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "flex-start",
+  },
+  warningText: {
+    flex: 1,
+    color: "#8A5A13",
+    fontSize: 13,
+    lineHeight: 18,
   },
   floatingBack: {
     position: "absolute",
