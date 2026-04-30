@@ -13,7 +13,7 @@ import {
 import { AuthContext } from "../context/AuthContext";
 
 export default function LoginScreen() {
-  const { login, rol } = useContext(AuthContext);
+  const { login, rol, logout } = useContext(AuthContext);
 
   const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +25,7 @@ export default function LoginScreen() {
     >
       <View style={styles.headerArea}>
         <Image
-          source={require("../assets/images/icon.png")}
+          source={require("../assets/images/logo.png")}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -33,14 +33,7 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.card}>
-        <View style={styles.tabContainer}>
-          <View style={[styles.tab, styles.tabActive]}>
-            <Text style={styles.tabTextActive}>Iniciar Sesion</Text>
-          </View>
-          <View style={styles.tab}>
-            <Text style={styles.tabText}>Registro</Text>
-          </View>
-        </View>
+        {/* header tabs removed - single login view */}
 
         <Text style={styles.label}>Correo electronico</Text>
         <View style={styles.inputContainer}>
@@ -80,6 +73,10 @@ export default function LoginScreen() {
           <Text style={styles.forgotText}>Olvidaste tu contrasena?</Text>
         </Pressable>
 
+        <Pressable onPress={logout}>
+          <Text style={styles.changeRoleText}>Cambiar rol</Text>
+        </Pressable>
+
         <Text style={styles.roleHint}>Rol actual: {rol}</Text>
       </View>
     </KeyboardAvoidingView>
@@ -99,8 +96,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   logo: {
-    width: 260,
-    height: 220,
+    width: 220,
+    height: 180,
+    borderRadius: 50,
     marginBottom: 10,
   },
   subtitle: {
@@ -182,6 +180,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#F28F32",
     fontSize: 32 / 2,
+  },
+  changeRoleText: {
+    marginTop: 12,
+    textAlign: "center",
+    color: "#2D4968",
+    fontWeight: "600",
+    fontSize: 14,
   },
   roleHint: {
     marginTop: 16,

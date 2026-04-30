@@ -16,9 +16,21 @@ import { ProductContext } from "../context/ProductContext";
 const CATEGORIAS = ["Lacteos", "Panaderia", "Granos", "Bebidas", "General"];
 const CATEGORIAS_FILTRO = ["Todos", ...CATEGORIAS];
 
+const MARCAS_POR_CATEGORIA = {
+  Lacteos: ["Alpina", "Colanta", "Alquería"],
+  Panaderia: ["Bimbo", "Ramo", "Tostao"],
+  Granos: ["Diana", "Roa", "Florhuila"],
+  Bebidas: ["Postobón", "Coca-Cola", "Pepsi"],
+  General: [],
+};
+
+const TIPOS_LECHE = ["Entera", "Deslactosada", "Descremada"];
+
 const FORM_INICIAL = {
   nombre: "",
   categoria: "General",
+  marca: "",
+  tipoLeche: "",
   stock: "",
   precio: "",
   vencimiento: "",
@@ -48,6 +60,8 @@ export default function AddProductScreen({ navigation, route }) {
 
   const [form, setForm] = useState(FORM_INICIAL);
   const [mostrarCategorias, setMostrarCategorias] = useState(false);
+  const [mostrarMarcas, setMostrarMarcas] = useState(false);
+  const [mostrarTipoLeche, setMostrarTipoLeche] = useState(false);
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [mesCalendario, setMesCalendario] = useState(new Date());
   const [mostrarFiltros, setMostrarFiltros] = useState(true);
@@ -123,6 +137,8 @@ export default function AddProductScreen({ navigation, route }) {
     setForm({
       nombre: producto.nombre || "",
       categoria: producto.categoria || "General",
+      marca: producto.marca || "",
+      tipoLeche: producto.tipoLeche || "",
       stock: String(producto.cantidad ?? ""),
       precio: String(producto.precio ?? ""),
       vencimiento: formatearFechaParaInput(producto.vencimiento || ""),
@@ -133,13 +149,30 @@ export default function AddProductScreen({ navigation, route }) {
   const cerrarModal = () => {
     setModalVisible(false);
     setMostrarCategorias(false);
+    setMostrarMarcas(false);
+    setMostrarTipoLeche(false);
     setMostrarCalendario(false);
     resetFormulario();
   };
 
   const seleccionarCategoria = (categoria) => {
-    setForm((prev) => ({ ...prev, categoria }));
+    setForm((prev) => ({
+      ...prev,
+      categoria,
+      marca: "",
+      tipoLeche: "",
+    }));
     setMostrarCategorias(false);
+  };
+
+  const seleccionarMarca = (marca) => {
+    setForm((prev) => ({ ...prev, marca }));
+    setMostrarMarcas(false);
+  };
+
+  const seleccionarTipoLeche = (tipo) => {
+    setForm((prev) => ({ ...prev, tipoLeche: tipo }));
+    setMostrarTipoLeche(false);
   };
 
   const abrirCalendario = () => {
@@ -177,6 +210,8 @@ export default function AddProductScreen({ navigation, route }) {
     const payload = {
       nombre: form.nombre.trim(),
       categoria: form.categoria,
+      marca: form.marca,
+      tipoLeche: form.tipoLeche,
       cantidad: stock,
       precio,
       vencimiento: normalizarFecha(form.vencimiento),
@@ -438,6 +473,64 @@ export default function AddProductScreen({ navigation, route }) {
                   </Pressable>
                 ))}
               </View>
+            )}
+
+            {form.categoria !== "General" && (
+              <>
+                <Text style={styles.inputLabel}>Marca</Text>
+                <Pressable
+                  style={styles.selectInput}
+                  onPress={() => setMostrarMarcas((prev) => !prev)}
+                >
+                  <Text style={styles.selectText}>
+                    {form.marca || "Seleccionar marca"}
+                  </Text>
+                  <Feather name="chevron-down" size={20} color="#222" />
+                </Pressable>
+
+                {mostrarMarcas && (
+                  <View style={styles.dropdown}>
+                    {MARCAS_POR_CATEGORIA[form.categoria]?.map((marca) => (
+                      <Pressable
+                        key={marca}
+                        style={styles.dropdownItem}
+                        onPress={() => seleccionarMarca(marca)}
+                      >
+                        <Text style={styles.dropdownItemText}>{marca}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+
+            {form.categoria === "Lacteos" && (
+              <>
+                <Text style={styles.inputLabel}>Tipo de leche</Text>
+                <Pressable
+                  style={styles.selectInput}
+                  onPress={() => setMostrarTipoLeche((prev) => !prev)}
+                >
+                  <Text style={styles.selectText}>
+                    {form.tipoLeche || "Seleccionar tipo"}
+                  </Text>
+                  <Feather name="chevron-down" size={20} color="#222" />
+                </Pressable>
+
+                {mostrarTipoLeche && (
+                  <View style={styles.dropdown}>
+                    {TIPOS_LECHE.map((tipo) => (
+                      <Pressable
+                        key={tipo}
+                        style={styles.dropdownItem}
+                        onPress={() => seleccionarTipoLeche(tipo)}
+                      >
+                        <Text style={styles.dropdownItemText}>{tipo}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </>
             )}
 
             <View style={styles.twoCols}>

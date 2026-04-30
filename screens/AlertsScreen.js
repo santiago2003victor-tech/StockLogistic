@@ -1,22 +1,23 @@
 import { Feather } from "@expo/vector-icons";
-import { useContext, useMemo } from "react";
+import { useContext, useMemo, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { ProductContext } from "../context/ProductContext";
 
 export default function AlertsScreen({ navigation }) {
   const { productos } = useContext(ProductContext);
+  const [filtroActivo, setFiltroActivo] = useState("todos");
 
   const alertas = useMemo(() => {
     return productos
       .map((producto) => {
         const dias = calcularDiasRestantes(producto.vencimiento);
-        if (dias === null || dias > 30) return null;
+        if (dias === null) return null;
 
         return {
           ...producto,
@@ -28,9 +29,9 @@ export default function AlertsScreen({ navigation }) {
       .sort((a, b) => a.dias - b.dias);
   }, [productos]);
 
-  const urgente = alertas.filter((a) => a.nivel === "urgente").length;
-  const advertencia = alertas.filter((a) => a.nivel === "advertencia").length;
-  const info = alertas.filter((a) => a.nivel === "info").length;
+  const urgente = alertas.filter((a) => a.nivel === "crítico").length;
+  const advertencia = alertas.filter((a) => a.nivel === "próximo").length;
+  const info = alertas.filter((a) => a.nivel === "estable").length;
 
   return (
     <View style={styles.screen}>
@@ -38,23 +39,62 @@ export default function AlertsScreen({ navigation }) {
         <Text style={styles.headerTitle}>Alertas de Vencimiento</Text>
 
         <View style={styles.summaryRow}>
-          <SummaryCard value={urgente} label="Urgente" />
-          <SummaryCard value={advertencia} label="Advertencia" />
-          <SummaryCard value={info} label="Info" />
+          <FilterButton
+            value="todos"
+            label="Todos"
+            count={alertas.length}
+            isActive={filtroActivo === "todos"}
+            onPress={() => setFiltroActivo("todos")}
+          />
+          <FilterButton
+            value="crítico"
+            label="Crítico"
+            count={urgente}
+            isActive={filtroActivo === "crítico"}
+            onPress={() => setFiltroActivo("crítico")}
+          />
+          <FilterButton
+            value="próximo"
+            label="Próximo"
+            count={advertencia}
+            isActive={filtroActivo === "próximo"}
+            onPress={() => setFiltroActivo("próximo")}
+          />
+          <FilterButton
+            value="estable"
+            label="Estable"
+            count={info}
+            isActive={filtroActivo === "estable"}
+            onPress={() => setFiltroActivo("estable")}
+          />
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>Urgente (1-3 dias)</Text>
+        <Text style={styles.sectionTitle}>
+          {filtroActivo === "todos"
+            ? "Todas las alertas"
+            : filtroActivo === "crítico"
+              ? "Crítico (1-3 días)"
+              : filtroActivo === "próximo"
+                ? "Próximo (4-7 días)"
+                : "Estable (8+ días)"}
+        </Text>
 
-        {alertas.length === 0 ? (
+        {(filtroActivo === "todos"
+          ? alertas
+          : alertas.filter((a) => a.nivel === filtroActivo)
+        ).length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
-              No hay alertas de vencimiento por ahora.
+              No hay alertas en esta categoría.
             </Text>
           </View>
         ) : (
-          alertas.map((item) => (
+          (filtroActivo === "todos"
+            ? alertas
+            : alertas.filter((a) => a.nivel === filtroActivo)
+          ).map((item) => (
             <View key={item.id} style={styles.alertCard}>
               <View style={styles.alertTopRow}>
                 <View>
@@ -103,19 +143,36 @@ export default function AlertsScreen({ navigation }) {
   );
 }
 
-function SummaryCard({ value, label }) {
+function FilterButton({ value, label, count, isActive, onPress }) {
   return (
-    <View style={styles.summaryCard}>
-      <Text style={styles.summaryValue}>{value}</Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
-    </View>
+    <TouchableOpacity
+      style={[styles.filterButton, isActive && styles.filterButtonActive]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.filterButtonValue,
+          isActive && styles.filterButtonValueActive,
+        ]}
+      >
+        {count}
+      </Text>
+      <Text
+        style={[
+          styles.filterButtonLabel,
+          isActive && styles.filterButtonLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
 function obtenerNivel(dias) {
-  if (dias <= 3) return "urgente";
-  if (dias <= 7) return "advertencia";
-  return "info";
+  if (dias <= 3) return "crítico";
+  if (dias <= 7) return "próximo";
+  return "estable";
 }
 
 function calcularDiasRestantes(vencimiento) {
@@ -187,24 +244,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
-  summaryCard: {
+  filterButton: {
     flex: 1,
     backgroundColor: "rgba(255,255,255,0.17)",
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 11,
+    borderWidth: 2,
+    borderColor: "transparent",
   },
-  summaryValue: {
+  filterButtonActive: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#FFFFFF",
+  },
+  filterButtonValue: {
     color: "#FFFFFF",
     fontSize: 34 / 2,
     fontWeight: "800",
     marginBottom: 2,
   },
-  summaryLabel: {
+  filterButtonValueActive: {
+    color: "#FAA33E",
+  },
+  filterButtonLabel: {
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
+  },
+  filterButtonLabelActive: {
+    color: "#FAA33E",
   },
   content: {
     padding: 12,
